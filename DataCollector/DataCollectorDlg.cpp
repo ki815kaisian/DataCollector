@@ -339,8 +339,23 @@ int CDataCollectorDlg::CanInit()
 			DNK_CloseDLL ();
 			return 1;
 		}else{
-			SetDlgItemText(IDC_EDIT_Tx, "100");//Tx ID
-			SetDlgItemText(IDC_EDIT_Rx, "7A8");//Rx ID
+			
+			CStdioFile canInfo;
+			CString readBuf;
+			CString tmpTxID;
+			CString tmpRxID;
+			if(!canInfo.Open(TEXT(".\\canID.txt"),CFile::modeRead)){
+				AfxMessageBox("Check CAN ID Info");
+				return 1;
+			}
+			canInfo.ReadString(readBuf);
+			tmpTxID.Format(readBuf);
+			canInfo.ReadString(readBuf);
+			tmpRxID.Format(readBuf);
+			canInfo.Close();
+
+			SetDlgItemText(IDC_EDIT_Tx, tmpTxID);//Tx ID
+			SetDlgItemText(IDC_EDIT_Rx, tmpRxID);//Rx ID
 
 			GetDlgItem(IDC_EDIT_Tx)->EnableWindow(FALSE);
 			GetDlgItem(IDC_EDIT_Rx)->EnableWindow(FALSE);
