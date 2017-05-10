@@ -48,11 +48,11 @@ CString GetLabName(){
 	CTime time = CTime::GetCurrentTime();
 
 	m_Date = time;
-	m_strMin.Format("%02d",m_Date.GetMinute()); //ë¶„
-	m_strHour.Format("%02d",m_Date.GetHour()); //ì‹œ
-	m_strDay.Format("%02d",m_Date.GetDay()); //ì¼
-	m_strMonth.Format("%02d",m_Date.GetMonth()); //ì›”
-	m_strYear.Format("%d",m_Date.GetYear()); //ë…„
+	m_strMin.Format("%02d",m_Date.GetMinute()); //ºĞ
+	m_strHour.Format("%02d",m_Date.GetHour()); //½Ã
+	m_strDay.Format("%02d",m_Date.GetDay()); //ÀÏ
+	m_strMonth.Format("%02d",m_Date.GetMonth()); //¿ù
+	m_strYear.Format("%d",m_Date.GetYear()); //³â
 	tmpName.Format("%s%s%s%s%s",m_strYear,m_strMonth,m_strDay,m_strHour,m_strMin);
 
 	return tmpName;

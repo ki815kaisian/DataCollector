@@ -65,7 +65,7 @@
 #pragma comment(lib, "libmysql.lib")
 #pragma comment(lib, "ws2_32.lib")
 
-#define DB_ADDRESS "localhost" //"202.30.21.33"
+//#define DB_ADDRESS "localhost" //"202.30.21.33"
 //#define DB_ID "root" //"neokai"
 //#define DB_PASS "spdhzkdl0" //"spdhzkdl0"
 //#define DB_NAME "rtfm"

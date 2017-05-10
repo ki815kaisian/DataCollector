@@ -23,6 +23,7 @@
       <Filter>리소스 파일</Filter>
     </None>
     <None Include="info.txt" />
+    <None Include="canID.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataCollector.h">

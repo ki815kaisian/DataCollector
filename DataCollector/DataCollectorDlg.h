@@ -35,7 +35,9 @@ protected:
 	afx_msg void OnBtnClear();
 	afx_msg int CanInit();
 	afx_msg int DBInit();
-	afx_msg void OnBnClickedCheck1();
+	afx_msg void OnBnClickedCheckLab();
+	afx_msg void OnBnClickedCheckTxID();
+	afx_msg void OnBnClickedCheckRxID();
 	afx_msg int GetSectionInfo(CString workSpaceName);
 
 	afx_msg HCURSOR OnQueryDragIcon();

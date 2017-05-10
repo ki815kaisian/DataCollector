@@ -36,7 +36,9 @@ BEGIN_MESSAGE_MAP(CDataCollectorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_SEND_DATA, OnBtnSendData)
 	ON_BN_CLICKED(IDC_BTN_CLEAR, OnBtnClear)
 
-	ON_BN_CLICKED(IDC_CHECK1, &CDataCollectorDlg::OnBnClickedCheck1)
+	ON_BN_CLICKED(IDC_CHECK_LAB, &CDataCollectorDlg::OnBnClickedCheckLab)
+	ON_BN_CLICKED(IDC_CHECK_TxID, &CDataCollectorDlg::OnBnClickedCheckTxID)
+	ON_BN_CLICKED(IDC_CHECK_RxID, &CDataCollectorDlg::OnBnClickedCheckRxID)
 
 END_MESSAGE_MAP()
 
@@ -51,12 +53,32 @@ BOOL CDataCollectorDlg::OnInitDialog()
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	LpCmdLine = theApp.m_lpCmdLine;
+
+	CStdioFile canInfo;
+	CString readBuf;
+	CString tmpTxID;
+	CString tmpRxID;
+	if (!canInfo.Open(TEXT(".\\canID.txt"), CFile::modeRead)) {
+		//파일이 없을때
+	}
+	else {
+		canInfo.ReadString(readBuf);
+		tmpTxID.Format(readBuf);
+		canInfo.ReadString(readBuf);
+		tmpRxID.Format(readBuf);
+		canInfo.Close();
+		CheckDlgButton(IDC_CHECK_TxID, TRUE);
+		CheckDlgButton(IDC_CHECK_RxID, TRUE);
+		GetDlgItem(IDC_EDIT_Tx)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_Rx)->EnableWindow(FALSE);
+		SetDlgItemText(IDC_EDIT_Tx, tmpTxID);//Tx ID
+		SetDlgItemText(IDC_EDIT_Rx, tmpRxID);//Rx ID
+	}
 	OnBtnInit();
 	TmpDumpVal = (BYTE *)malloc(BANDMAX*DATASIZE*sizeof(BYTE));
 	memset(TmpDumpVal,0,BANDMAX*DATASIZE*sizeof(BYTE));
-	GetDlgItem(IDC_BTN_SEND_DATA)->EnableWindow(FALSE);
 	CreateDirectory(".\\data", NULL);
-
+	
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 
@@ -230,9 +252,15 @@ void CDataCollectorDlg::OnBtnSendData()
 	GetDlgItemText(IDC_EDIT_End, tmpEnd);
 	GetDlgItemText(IDC_EDIT_Rx, tmpRxID);
 	GetDlgItemText(IDC_EDIT_DataPacket, tmpDataPacket);
-	if(IsDlgButtonChecked(IDC_CHECK1))tmpLabName=GetLabName();
+	if(IsDlgButtonChecked(IDC_CHECK_LAB))tmpLabName=GetLabName();
 	else GetDlgItemText(IDC_EDIT_LAB, tmpLabName);
 	SetDlgItemText(IDC_EDIT_LAB, tmpLabName);
+
+	CStdioFile canInfo; 
+	canInfo.Open(".\\canID.txt",CFile::modeCreate | CFile::shareDenyNone | CFile::modeReadWrite);
+	canInfo.WriteString(tmpTxID + "\n");
+	canInfo.WriteString(tmpRxID + "\n");
+	canInfo.Close();
 
 	TxID = xstrtoi((LPSTR)(LPCSTR)tmpTxID);	
 	startAddress = xstrtoi((LPSTR)(LPCSTR)tmpStart);
@@ -309,7 +337,9 @@ void CDataCollectorDlg::OnBtnInit()
 		AfxMessageBox ("Initialization Complete");
 		GetDlgItem(IDC_BTN_INIT)->EnableWindow(FALSE);
 		GetDlgItem(IDC_BTN_SEND_DATA)->EnableWindow(TRUE);
+		return;
 	}
+	GetDlgItem(IDC_BTN_SEND_DATA)->EnableWindow(FALSE);
 }
 
 void CDataCollectorDlg::OnBtnClear() 
@@ -317,15 +347,37 @@ void CDataCollectorDlg::OnBtnClear()
 	m_lstCan.ResetContent ();	
 }
 
-void CDataCollectorDlg::OnBnClickedCheck1()
+void CDataCollectorDlg::OnBnClickedCheckLab()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	if(IsDlgButtonChecked(IDC_CHECK1))GetDlgItem(IDC_EDIT_LAB)->EnableWindow(FALSE);
+	if(IsDlgButtonChecked(IDC_CHECK_LAB))GetDlgItem(IDC_EDIT_LAB)->EnableWindow(FALSE);
 	else GetDlgItem(IDC_EDIT_LAB)->EnableWindow(TRUE);
+}
+
+void CDataCollectorDlg::OnBnClickedCheckTxID()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if (IsDlgButtonChecked(IDC_CHECK_TxID))GetDlgItem(IDC_EDIT_Tx)->EnableWindow(FALSE);
+	else GetDlgItem(IDC_EDIT_Tx)->EnableWindow(TRUE);
+}
+
+void CDataCollectorDlg::OnBnClickedCheckRxID()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if (IsDlgButtonChecked(IDC_CHECK_RxID))GetDlgItem(IDC_EDIT_Rx)->EnableWindow(FALSE);
+	else GetDlgItem(IDC_EDIT_Rx)->EnableWindow(TRUE);
 }
 
 int CDataCollectorDlg::CanInit()
 {
+	CString tmpTxID;
+	CString tmpRxID;
+
+	GetDlgItemText(IDC_EDIT_Tx, tmpTxID);//Tx ID
+	if (tmpTxID.GetLength() < 1)return 1;
+	GetDlgItemText(IDC_EDIT_Rx, tmpRxID);//Rx ID
+	if (tmpRxID.GetLength() < 1)return 1;
+
 	int DLL_ERR = DNK_InitDLL();
 	if (DLL_ERR == ERR_OK);	// cantalker.dll 로딩
 	else{
@@ -336,30 +388,12 @@ int CDataCollectorDlg::CanInit()
 		if (DNK_InitUSBDriver(0) < ERR_OK)	// DNK_GetDeviceCount()로부터 얻어진 장치 중 선택
 		{									// DNK_InitUSBDriver의 parameter로 선택 가
 			AfxMessageBox ("CAN Driver Initialization Failed");
+			DNK_CloseDriver();
 			DNK_CloseDLL ();
 			return 1;
 		}else{
 			
-			CStdioFile canInfo;
-			CString readBuf;
-			CString tmpTxID;
-			CString tmpRxID;
-			if(!canInfo.Open(TEXT(".\\canID.txt"),CFile::modeRead)){
-				AfxMessageBox("Check CAN ID Info");
-				return 1;
-			}
-			canInfo.ReadString(readBuf);
-			tmpTxID.Format(readBuf);
-			canInfo.ReadString(readBuf);
-			tmpRxID.Format(readBuf);
-			canInfo.Close();
-
-			SetDlgItemText(IDC_EDIT_Tx, tmpTxID);//Tx ID
-			SetDlgItemText(IDC_EDIT_Rx, tmpRxID);//Rx ID
-
-			GetDlgItem(IDC_EDIT_Tx)->EnableWindow(FALSE);
-			GetDlgItem(IDC_EDIT_Rx)->EnableWindow(FALSE);
-
+		
 			SetTimer (0, 100, NULL);
 		}
 	}else{
