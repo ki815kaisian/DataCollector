@@ -48,11 +48,11 @@ CString GetLabName(){
 	CTime time = CTime::GetCurrentTime();
 
 	m_Date = time;
-	m_strMin.Format("%02d",m_Date.GetMinute()); //∫–
-	m_strHour.Format("%02d",m_Date.GetHour()); //Ω√
-	m_strDay.Format("%02d",m_Date.GetDay()); //¿œ
-	m_strMonth.Format("%02d",m_Date.GetMonth()); //ø˘
-	m_strYear.Format("%d",m_Date.GetYear()); //≥‚
+	m_strMin.Format("%02d",m_Date.GetMinute()); //Î∂Ñ
+	m_strHour.Format("%02d",m_Date.GetHour()); //Ïãú
+	m_strDay.Format("%02d",m_Date.GetDay()); //Ïùº
+	m_strMonth.Format("%02d",m_Date.GetMonth()); //Ïõî
+	m_strYear.Format("%d",m_Date.GetYear()); //ÎÖÑ
 	tmpName.Format("%s%s%s%s%s",m_strYear,m_strMonth,m_strDay,m_strHour,m_strMin);
 
 	return tmpName;
@@ -67,7 +67,10 @@ int DBConnect(MYSQL *sql, MYSQL **con)
 	CString DbId;
 	CString DbPass;
 	CString DbName;
-
+	CString DbAddr;
+	CString DbPortStr;
+	unsigned int DbPortNum;
+	
 	if(!dbInfo.Open(TEXT(".\\info.txt"),CFile::modeRead)){
 		AfxMessageBox("Check DB Info");
 		return 1;
@@ -78,10 +81,15 @@ int DBConnect(MYSQL *sql, MYSQL **con)
 	DbId.Format(readBuf);
 	dbInfo.ReadString(readBuf);
 	DbPass.Format(readBuf);
+	dbInfo.ReadString(readBuf);
+	AfxExtractSubString(DbAddr, readBuf, 0, ':');
+	AfxExtractSubString(DbPortStr, readBuf, 1, ':');
 	dbInfo.Close();
 
+	DbPortNum = _ttoi(DbPortStr);
+
 	mysql_init(sql);
-	*con = mysql_real_connect(sql, DB_ADDRESS, DbId, DbPass, DbName, 3306, NULL, 0);
+	*con = mysql_real_connect(sql, DbAddr, DbId, DbPass, DbName, DbPortNum, NULL, 0);
 	if(*con == NULL){
 		CString msg;
 		msg.Format("%s",mysql_error(sql));
