@@ -58,8 +58,8 @@ public:
 	int Cascading;
 	CFile DataCollect;
 	CString FileName;
-	CFile StackPointer;
-	CString SPFileName;
+	//CFile StackPointer;
+	//CString SPFileName;
 
 	CStdioFile CsvToDB;
 	

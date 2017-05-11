@@ -176,12 +176,12 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 					}
 
 					if(SPFlag==1){
-						CString SPtmp;
+						/*CString SPtmp;
 						SPtmp.Format("%d,%02X%02X%02X%02X\n",frameIndex,rxPacket.data[4],rxPacket.data[5],rxPacket.data[6],rxPacket.data[7]);
 						StackPointer.Open(TEXT(SPFileName),CFile::shareDenyNone | CFile::modeReadWrite);
 						StackPointer.Seek(0L, CFile::end);
 						StackPointer.Write(TEXT(SPtmp),SPtmp.GetLength());					
-						StackPointer.Close();
+						StackPointer.Close();*/
 					}
 				}
 				if((address < INFO_BIT)){
@@ -302,9 +302,9 @@ void CDataCollectorDlg::OnBtnSendData()
 	NameCnt=0;
 	SPFlag=0;
 	CreateDirectory(".\\data\\"+LabName, NULL);
-	SPFileName.Format(".\\data\\"+LabName+"\\"+LabName+"_SP.csv");
+	/*SPFileName.Format(".\\data\\"+LabName+"\\"+LabName+"_SP.csv");
 	StackPointer.Open(TEXT(SPFileName),CFile::modeCreate | CFile::shareDenyNone | CFile::modeReadWrite);
-	StackPointer.Close();
+	StackPointer.Close();*/
 	
 	thParam.FileNum = Cascading;
 	thParam.File = CsvFile;
@@ -505,7 +505,20 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 		}
 	}
 		
-	query.Format("SELECT baseaddress, size FROM rtfm.sectiontable where workspace_id = '%d' and section = '.os_taskstack';",workSpaceId);
+	query.Format("SELECT baseaddress FROM rtfm.sectiontable where workspace_id = '%d' and section_index = (SELECT min(section_index) from rtfm.sectiontable where workspace_id = '%d');", workSpaceId, workSpaceId);
+	mysql_query(connection, query);
+	m_res = mysql_store_result(&mysql);
+	if (!(row = mysql_fetch_row(m_res)) == NULL) {
+		tmpAddr = row[0];
+		tmpAddr.Delete(0, 4);
+		strcpy_s(tmpAddrArray, tmpAddr.GetLength() + 1, (const char*)tmpAddr.GetBuffer(0));
+		tmpAddress = xstrtoi(tmpAddrArray);
+		tmpBase.Format("%x", tmpAddress);
+	}
+	else tmpBase.Format("");
+	SetDlgItemText(IDC_EDIT_Start, tmpBase);//startAddress
+
+	query.Format("SELECT baseaddress, size FROM rtfm.sectiontable where workspace_id = '%d' and section_index = (SELECT max(section_index) from rtfm.sectiontable where workspace_id = '%d');",workSpaceId, workSpaceId);
 	mysql_query(connection,query);
 	m_res = mysql_store_result(&mysql);
 	if(!(row = mysql_fetch_row(m_res))==NULL){
@@ -517,7 +530,6 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 		tmpBase.Format("%x",tmpAddress);
 	}else tmpBase.Format("");
 
-	SetDlgItemText(IDC_EDIT_Start, "0");//startAddress
 	SetDlgItemText(IDC_EDIT_End, tmpBase);//EndAddress
 	
 	return 0;
