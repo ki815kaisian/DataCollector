@@ -205,7 +205,7 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 						tmpQueryCnt=0;
 						DataCollect.Close();
 
-						if((frameIndex==FrameLimit-1)&&(NameCnt==Cascading)&&(address+6*Cascading>=EndAddress)){
+						if((frameIndex==FrameLimit-1)&&(NameCnt==Cascading)&&(address+6>=EndAddress)){
 							CsvFile[NameCnt-1].writeFlag=1;
 						}						
 					}					
@@ -215,7 +215,7 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 					if(frameIndex==0){
 						if(NameCnt>0)CsvFile[NameCnt-1].writeFlag=1;
 						FileName.Format(".\\data\\"+LabName+"\\"+LabName+"_%d.csv",NameCnt++);
-						CsvFile[NameCnt-1].csvFileName.Format(FileName);
+						sprintf(CsvFile[NameCnt-1].csvFileName, "%s", FileName);
 						DataCollect.Open(TEXT(FileName),CFile::modeCreate | CFile::shareDenyNone | CFile::modeReadWrite);
 						DataCollect.Close();
 					}

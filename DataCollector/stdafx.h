@@ -92,7 +92,7 @@ typedef struct sectionAddr{
 }SECINFO;
 
 typedef struct fileManage{
-	CString csvFileName;
+	char csvFileName[200];
 	int writeFlag;
 }FILEMNG;
 
