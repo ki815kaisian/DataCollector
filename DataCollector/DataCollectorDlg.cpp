@@ -198,26 +198,30 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 							query.Append(tmp);
 							tmpQueryCnt++;
 						}
-						DataCollect.Open(TEXT(FileName),CFile::shareDenyNone | CFile::modeReadWrite);
-						DataCollect.Seek(0L, CFile::end);
+						//DataCollect.Open(TEXT(FileName),CFile::shareDenyNone | CFile::modeReadWrite);
+						//DataCollect.Seek(0L, CFile::end);
 						DataCollect.Write(TEXT(query),query.GetLength());
 						query.Format("");
 						tmpQueryCnt=0;
-						DataCollect.Close();
+						//DataCollect.Close();
 
 						if((frameIndex==FrameLimit-1)&&(NameCnt==Cascading)&&(address+6>=EndAddress)){
-							CsvFile[NameCnt-1].writeFlag=1;
-						}						
+							DataCollect.Close();
+							CsvFile[NameCnt - 1].writeFlag = 1;
+						}
 					}					
 				}else if(address >= INFO_BIT){
 					infoBit = (rxPacket.data[0] << 8) + rxPacket.data[1];
 					address = 0;
 					if(frameIndex==0){
-						if(NameCnt>0)CsvFile[NameCnt-1].writeFlag=1;
+						if (NameCnt > 0) {
+							DataCollect.Close();
+							CsvFile[NameCnt - 1].writeFlag = 1;
+						}
 						FileName.Format(".\\data\\"+LabName+"\\"+LabName+"_%d.csv",NameCnt++);
 						sprintf(CsvFile[NameCnt-1].csvFileName, "%s", FileName);
 						DataCollect.Open(TEXT(FileName),CFile::modeCreate | CFile::shareDenyNone | CFile::modeReadWrite);
-						DataCollect.Close();
+						//DataCollect.Close();
 					}
 				}				
 			}
