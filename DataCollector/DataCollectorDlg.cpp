@@ -316,7 +316,7 @@ void CDataCollectorDlg::OnBtnSendData()
 
 	GetDlgItemText(IDC_EDIT_Frame, tmpFrame);
 	FrameLimit = _ttoi(tmpFrame);
-	txPacket = packetFrame(TxID, INFO_BIT, FrameLimit, startAddress, endAddress);
+	txPacket = packetFrame(TxID, INFO_BIT|Cascading, FrameLimit, startAddress, endAddress);
 
 	if((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK){
 		CString msg;
