@@ -274,8 +274,7 @@ void CDataCollectorDlg::OnBtnSendData()
 	RxID = xstrtoi((LPSTR)(LPCSTR)tmpRxID);
 	DataPacket = _ttoi(tmpDataPacket);
 
-	if ((endAddress - startAddress + 1) % (DataPacket*DATASIZE) == 0)Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE);
-	else Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE) + 1;
+	Cascading = (endAddress-startAddress)/(DataPacket*DATASIZE)+1;
 	CsvFile = (FILEMNG *)malloc(Cascading*sizeof(FILEMNG));
 
 	for(queryCnt=0;queryResult==0;){
@@ -462,7 +461,6 @@ int CDataCollectorDlg::DBInit()
 	
 	SetDlgItemText(IDC_EDIT_Frame, "10");//Frame
 	SetDlgItemText(IDC_EDIT_DataPacket, "15");//DataPacket
-	GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(FALSE);
 
 	return 0;
 }
@@ -532,7 +530,7 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 		tmpSize = row[1];
 		tmpAddr.Delete(0,4);
 		strcpy_s(tmpAddrArray, tmpAddr.GetLength()+1, (const char*)tmpAddr.GetBuffer(0));
-		tmpAddress = xstrtoi(tmpAddrArray) + _ttoi(tmpSize) - 1;
+		tmpAddress = xstrtoi(tmpAddrArray) + _ttoi(tmpSize);
 		tmpBase.Format("%x",tmpAddress);
 	}else tmpBase.Format("");
 
