@@ -23,6 +23,7 @@ public:
 // 구현입니다.
 protected:
 	HICON m_hIcon;
+	HWND hWnd;
 
 	// 생성된 메시지 맵 함수
 	virtual BOOL OnInitDialog();
@@ -38,24 +39,37 @@ protected:
 	afx_msg void OnBnClickedCheckLab();
 	afx_msg void OnBnClickedCheckTxID();
 	afx_msg void OnBnClickedCheckRxID();
-	afx_msg int GetSectionInfo(CString workSpaceName);
 
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+	afx_msg void AddNodeSendData();
 
 public:
 	LPTSTR LpCmdLine;
 	int TxID;
 	int RxID;
 	
-	int EndAddress;
 	int FrameLimit;
 	int DataPacket;
+
 	CString LabName;
 	int LabId;
 	int WorkSpaceId;
 	int TestCaseId;
 	int Cascading;
+	int EndAddress;
+	CAN_FRAME txPacket;
+
+	BOOL AddNodeFlag;
+	CString AddLabName;
+	int AddLabId;
+	int AddWorkSpaceId;
+	int AddTestCaseId;
+	int AddCascading;
+	int AddStartAddress;
+	int AddEndAddress;
+	CAN_FRAME addPacket;
+
 	CFile DataCollect;
 	CString FileName;
 	//CFile StackPointer;
@@ -67,10 +81,15 @@ public:
 	int NameCnt;
 	int SPFlag;
 	SECINFO SectionInfo[33];
+	SECINFO AddSectionInfo[33];
 	FILEMNG *CsvFile;
 	BYTE *TmpDumpVal;
 
 	CWinThread* toDBThread;
+
+	int GetSectionInfo(CString workSpaceName);
+	afx_msg void OnBnClickedBtnGetAddnode();
+	afx_msg void OnBnClickedCheckPacket();
 };
 
 

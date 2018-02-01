@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "DataCollector.h"
 #include "DataCollectorDlg.h"
+#include "AdditionalNodeDlg.h"
 #include "afxdialogex.h"
 #include <malloc.h>
 
@@ -16,6 +17,8 @@ CDataCollectorDlg::CDataCollectorDlg(CWnd* pParent /*=NULL*/)
 	FrameLimit = 0;
 	NameCnt = 0;
 	SPFlag = 0;
+	AddCascading = 0;
+	AddNodeFlag = 0;
 }
 
 void CDataCollectorDlg::DoDataExchange(CDataExchange* pDX)
@@ -40,6 +43,8 @@ BEGIN_MESSAGE_MAP(CDataCollectorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK_TxID, &CDataCollectorDlg::OnBnClickedCheckTxID)
 	ON_BN_CLICKED(IDC_CHECK_RxID, &CDataCollectorDlg::OnBnClickedCheckRxID)
 
+	ON_BN_CLICKED(IDC_BTN_GET_ADDNODE, &CDataCollectorDlg::OnBnClickedBtnGetAddnode)
+	ON_BN_CLICKED(IDC_CHECK_Packet, &CDataCollectorDlg::OnBnClickedCheckPacket)
 END_MESSAGE_MAP()
 
 BOOL CDataCollectorDlg::OnInitDialog()
@@ -74,6 +79,12 @@ BOOL CDataCollectorDlg::OnInitDialog()
 		SetDlgItemText(IDC_EDIT_Tx, tmpTxID);//Tx ID
 		SetDlgItemText(IDC_EDIT_Rx, tmpRxID);//Rx ID
 	}
+	CheckDlgButton(IDC_CHECK_Packet, TRUE);
+	GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_SEND_DATA)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_GET_ADDNODE)->EnableWindow(FALSE);
+	SetDlgItemText(IDC_EDIT_DataPacket, "15");
+
 	OnBtnInit();
 	TmpDumpVal = (BYTE *)malloc(BANDMAX*DATASIZE*sizeof(BYTE));
 	memset(TmpDumpVal,0,BANDMAX*DATASIZE*sizeof(BYTE));
@@ -192,8 +203,20 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 							else update = 0;
 							TmpDumpVal[valCnt]=rxPacket.data[2+k];
 
-							for(sectionID=0;(address + k) >= SectionInfo[sectionID].endAddr;sectionID++);
-							tmp.Format("%d,%d,%d,%d,%d,%d,",address + k, rxPacket.data[2+k], frameIndex, LabId, update, sectionID);
+							if (AddNodeFlag) {
+								if (NameCnt <= Cascading) {
+									for (sectionID = 0; (address + k) >= SectionInfo[sectionID].endAddr; sectionID++);
+									tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, LabId, update, sectionID);
+								}
+								else {
+									for (sectionID = 0; (address + k) >= AddSectionInfo[sectionID].endAddr; sectionID++);
+									tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, AddLabId, update, sectionID);
+								}
+							}
+							else {
+								for (sectionID = 0; (address + k) >= SectionInfo[sectionID].endAddr; sectionID++);
+								tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, LabId, update, sectionID);
+							}
 							valCnt++;
 							query.Append(tmp);
 							tmpQueryCnt++;
@@ -205,9 +228,21 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 						tmpQueryCnt=0;
 						//DataCollect.Close();
 
-						if((frameIndex==FrameLimit-1)&&(NameCnt==Cascading)&&(address+6>=EndAddress)){
-							DataCollect.Close();
-							CsvFile[NameCnt - 1].writeFlag = 1;
+						if (AddNodeFlag) {
+							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+AddCascading) && (address + 6 >= AddEndAddress)) {
+								DataCollect.Close();
+								CsvFile[NameCnt - 1].writeFlag = 1;
+							}
+							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
+								AddNodeSendData();
+							}
+
+						}
+						else {
+							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
+								DataCollect.Close();
+								CsvFile[NameCnt - 1].writeFlag = 1;
+							}
 						}
 					}					
 				}else if(address >= INFO_BIT){
@@ -235,7 +270,6 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 void CDataCollectorDlg::OnBtnSendData() 
 {
 	int ERR_SEND;
-	CAN_FRAME txPacket;
 	CString tmpTxID;
 	CString tmpRxID;
 	CString tmpFrame;
@@ -276,7 +310,7 @@ void CDataCollectorDlg::OnBtnSendData()
 
 	if ((endAddress - startAddress + 1) % (DataPacket*DATASIZE) == 0)Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE);
 	else Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE) + 1;
-	CsvFile = (FILEMNG *)malloc(Cascading*sizeof(FILEMNG));
+	CsvFile = (FILEMNG *)malloc((Cascading+AddCascading)*sizeof(FILEMNG));
 
 	for(queryCnt=0;queryResult==0;){
 		if(queryCnt==0)query.Format("SELECT id FROM rtfm.labname where labname = ('%s')",tmpLabName);
@@ -310,14 +344,28 @@ void CDataCollectorDlg::OnBtnSendData()
 	/*SPFileName.Format(".\\data\\"+LabName+"\\"+LabName+"_SP.csv");
 	StackPointer.Open(TEXT(SPFileName),CFile::modeCreate | CFile::shareDenyNone | CFile::modeReadWrite);
 	StackPointer.Close();*/
-	
-	thParam.FileNum = Cascading;
+
+	if (AddNodeFlag) {
+		AddLabName = LabName + "_add";
+		query.Format("insert into labname (labname, startaddr, endaddr, workspace_id, testcase_id) values ('%s', %d, %d, %d, %d)", AddLabName, AddStartAddress, AddEndAddress, AddWorkSpaceId, AddTestCaseId);
+		mysql_query(connection, query);
+		query.Format("SELECT id FROM rtfm.labname where labname = ('%s')", AddLabName);
+		mysql_query(connection, query);
+		m_res = mysql_store_result(&mysql);
+		if ((row = mysql_fetch_row(m_res)) == NULL) {
+			AfxMessageBox("Check DB Status");
+			return;
+		}
+		AddLabId = _ttoi(row[0]);
+	}
+
+	thParam.FileNum = Cascading+AddCascading;
 	thParam.File = CsvFile;
 	toDBThread = AfxBeginThread(CSVtoDB, (LPVOID)&thParam, 0, 0U, 0UL, (LPSECURITY_ATTRIBUTES)0);
 
 	GetDlgItemText(IDC_EDIT_Frame, tmpFrame);
 	FrameLimit = _ttoi(tmpFrame);
-	txPacket = packetFrame(TxID, INFO_BIT|Cascading, FrameLimit, startAddress, endAddress);
+	txPacket = packetFrame(TxID, INFO_BIT|(Cascading+AddCascading), FrameLimit, startAddress, endAddress);
 
 	if((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK){
 		CString msg;
@@ -460,9 +508,10 @@ int CDataCollectorDlg::DBInit()
 		return 1;
 	}
 	
+	GetDlgItem(IDC_BTN_GET_ADDNODE)->EnableWindow(TRUE);
 	SetDlgItemText(IDC_EDIT_Frame, "10");//Frame
-	SetDlgItemText(IDC_EDIT_DataPacket, "15");//DataPacket
-	GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(FALSE);
+	//SetDlgItemText(IDC_EDIT_DataPacket, "15");//DataPacket
+	//GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(FALSE);
 
 	return 0;
 }
@@ -495,6 +544,7 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 		return 1;
 	}else sectionIndex = _ttoi(row[0]);
 
+	for (int i = 0; i<10; i++)tmpAddrArray[i] = 0;
 	query.Format("SELECT section_index, section, baseaddress, size FROM rtfm.sectiontable where workspace_id = '%d';",workSpaceId);
 	mysql_query(connection, query);
 	m_res = mysql_store_result(&mysql);
@@ -511,6 +561,7 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 		}
 	}
 		
+	for (int i = 0; i<10; i++)tmpAddrArray[i] = 0;
 	query.Format("SELECT baseaddress FROM rtfm.sectiontable where workspace_id = '%d' and section_index = (SELECT min(section_index) from rtfm.sectiontable where workspace_id = '%d');", workSpaceId, workSpaceId);
 	mysql_query(connection, query);
 	m_res = mysql_store_result(&mysql);
@@ -524,6 +575,7 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 	else tmpBase.Format("");
 	SetDlgItemText(IDC_EDIT_Start, tmpBase);//startAddress
 
+	for (int i = 0; i<10; i++)tmpAddrArray[i] = 0;
 	query.Format("SELECT baseaddress, size FROM rtfm.sectiontable where workspace_id = '%d' and section_index = (SELECT max(section_index) from rtfm.sectiontable where workspace_id = '%d');",workSpaceId, workSpaceId);
 	mysql_query(connection,query);
 	m_res = mysql_store_result(&mysql);
@@ -539,4 +591,65 @@ int CDataCollectorDlg::GetSectionInfo(CString workSpaceName)
 	SetDlgItemText(IDC_EDIT_End, tmpBase);//EndAddress
 	
 	return 0;
+}
+
+
+void CDataCollectorDlg::OnBnClickedBtnGetAddnode()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	CAdditionalNodeDlg dlg;
+
+	int addTxID = 0;
+
+	if (dlg.DoModal() != IDOK) {
+		AfxMessageBox("Cancel adding node");
+		return;
+	}
+
+	addTxID = dlg.TxID;
+	AddWorkSpaceId = dlg.WorkSpaceId;
+	AddTestCaseId = dlg.TestCaseId;
+	AddStartAddress = dlg.StartAddress;
+	AddEndAddress = dlg.EndAddress;
+
+	if ((AddEndAddress - AddStartAddress + 1) % (DataPacket*DATASIZE) == 0)AddCascading = (AddEndAddress - AddStartAddress + 1) / (DataPacket*DATASIZE);
+	else AddCascading = (AddEndAddress - AddStartAddress + 1) / (DataPacket*DATASIZE) + 1;
+
+	addPacket = packetFrame(addTxID, INFO_BIT, 0, AddStartAddress, AddEndAddress);
+
+	CString msg;
+	AfxMessageBox("Additional Success!!");
+	msg.Format("WS-%d,TC-%d,MSG-%04X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", AddWorkSpaceId, AddTestCaseId, addPacket.canId, addPacket.dlc, addPacket.data[0], addPacket.data[1], addPacket.data[2], addPacket.data[3], addPacket.data[4], addPacket.data[5], addPacket.data[6], addPacket.data[7]);
+	m_lstCan.AddString(msg);
+	AddNodeFlag = 1;
+
+}
+
+
+void CDataCollectorDlg::OnBnClickedCheckPacket()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	if (IsDlgButtonChecked(IDC_CHECK_Packet))GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(FALSE);
+	else GetDlgItem(IDC_EDIT_DataPacket)->EnableWindow(TRUE);
+}
+
+void CDataCollectorDlg::AddNodeSendData()
+{
+	int ERR_SEND;
+
+	addPacket.data[2] = txPacket.data[2];
+	addPacket.data[3] = txPacket.data[3];
+
+
+	if ((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK) {
+		CString msg;
+		AfxMessageBox("Data sending Complete !!");
+		msg.Format("%d %08X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", addPacket.timeStamp, addPacket.canId, addPacket.dlc, addPacket.data[0], addPacket.data[1], addPacket.data[2], addPacket.data[3], addPacket.data[4], addPacket.data[5], addPacket.data[6], addPacket.data[7]);
+		m_lstCan.AddString(msg);
+	}
+	else {
+		CString msg;
+		msg.Format("Data sending error !!\nError Code : %d", ERR_SEND);
+		AfxMessageBox(msg);
+	}
 }
