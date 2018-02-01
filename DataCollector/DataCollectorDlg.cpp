@@ -63,6 +63,8 @@ BOOL CDataCollectorDlg::OnInitDialog()
 	CString readBuf;
 	CString tmpTxID;
 	CString tmpRxID;
+	CString tmpDataPacket;
+
 	if (!canInfo.Open(TEXT(".\\canID.txt"), CFile::modeRead)) {
 		//파일이 없을때
 	}
@@ -84,6 +86,8 @@ BOOL CDataCollectorDlg::OnInitDialog()
 	GetDlgItem(IDC_BTN_SEND_DATA)->EnableWindow(FALSE);
 	GetDlgItem(IDC_BTN_GET_ADDNODE)->EnableWindow(FALSE);
 	SetDlgItemText(IDC_EDIT_DataPacket, "15");
+	GetDlgItemText(IDC_EDIT_DataPacket, tmpDataPacket);
+	DataPacket = _ttoi(tmpDataPacket);
 
 	OnBtnInit();
 	TmpDumpVal = (BYTE *)malloc(BANDMAX*DATASIZE*sizeof(BYTE));
@@ -278,7 +282,6 @@ void CDataCollectorDlg::OnBtnSendData()
 	CString tmpEnd;
 	int endAddress=0;
 	CString tmpLabName;
-	CString tmpDataPacket;
 	CString query;
 	int queryResult=0;
 	int queryCnt=0;
@@ -289,7 +292,6 @@ void CDataCollectorDlg::OnBtnSendData()
 	GetDlgItemText(IDC_EDIT_Start, tmpStart);
 	GetDlgItemText(IDC_EDIT_End, tmpEnd);
 	GetDlgItemText(IDC_EDIT_Rx, tmpRxID);
-	GetDlgItemText(IDC_EDIT_DataPacket, tmpDataPacket);
 	if(IsDlgButtonChecked(IDC_CHECK_LAB))tmpLabName=GetLabName();
 	else GetDlgItemText(IDC_EDIT_LAB, tmpLabName);
 	SetDlgItemText(IDC_EDIT_LAB, tmpLabName);
@@ -306,7 +308,7 @@ void CDataCollectorDlg::OnBtnSendData()
 	EndAddress = endAddress;
 
 	RxID = xstrtoi((LPSTR)(LPCSTR)tmpRxID);
-	DataPacket = _ttoi(tmpDataPacket);
+	
 
 	if ((endAddress - startAddress + 1) % (DataPacket*DATASIZE) == 0)Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE);
 	else Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE) + 1;

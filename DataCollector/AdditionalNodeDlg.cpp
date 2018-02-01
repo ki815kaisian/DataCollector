@@ -78,8 +78,6 @@ void CAdditionalNodeDlg::OnBnClickedBtnCheck()
 
 	GetDlgItem(IDC_EDIT_WS_ADD)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_TC_ADD)->EnableWindow(FALSE);
-	GetDlgItem(IDC_EDIT_Start_ADD)->EnableWindow(FALSE);
-	GetDlgItem(IDC_EDIT_End_ADD)->EnableWindow(FALSE);
 
 	return;
 }
