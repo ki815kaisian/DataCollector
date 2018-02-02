@@ -17,7 +17,7 @@ CDataCollectorDlg::CDataCollectorDlg(CWnd* pParent /*=NULL*/)
 	FrameLimit = 0;
 	NameCnt = 0;
 	SPFlag = 0;
-	AddCascading = 0;
+	SumCascading = 0;
 	AddNodeFlag = 0;
 }
 
@@ -155,6 +155,8 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 
 	static int tmpQueryCnt=0;
 
+	static int addCascading = 0;
+
 	if (nIDEvent == 0){
 		int cnt, i;
 		int ret;
@@ -202,19 +204,22 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 				if((address < INFO_BIT)){
 					if(frameIndex < FrameLimit){
 						CString tmp;
+
 						for(int k = 0; k < 6; k++){
 							if(frameIndex>0)update = (TmpDumpVal[valCnt]==rxPacket.data[2+k])?0:1;
 							else update = 0;
 							TmpDumpVal[valCnt]=rxPacket.data[2+k];
 
 							if (AddNodeFlag) {
+								addNode *pData = NULL;
+								pData = (addNode *)addNodeList.GetHead();
 								if (NameCnt <= Cascading) {
 									for (sectionID = 0; (address + k) >= SectionInfo[sectionID].endAddr; sectionID++);
 									tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, LabId, update, sectionID);
 								}
 								else {
-									for (sectionID = 0; (address + k) >= AddSectionInfo[sectionID].endAddr; sectionID++);
-									tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, AddLabId, update, sectionID);
+									for (sectionID = 0; (address + k) >= pData->AddSectionInfo[sectionID].endAddr; sectionID++);
+									tmp.Format("%d,%d,%d,%d,%d,%d,", address + k, rxPacket.data[2 + k], frameIndex, pData->AddLabId, update, sectionID);
 								}
 							}
 							else {
@@ -233,11 +238,20 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 						//DataCollect.Close();
 
 						if (AddNodeFlag) {
-							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+AddCascading) && (address + 6 >= AddEndAddress)) {
+							addNode *pData = NULL;
+							pData = (addNode *)addNodeList.GetHead();
+							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+SumCascading) && (address + 6 >= pData->AddEndAddress)) {
 								DataCollect.Close();
 								CsvFile[NameCnt - 1].writeFlag = 1;
 							}
+							else if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+addCascading) && (address + 6 >= pData->AddEndAddress)) {
+								addCascading += pData->AddCascading;
+								addNodeList.RemoveHead();
+								AddNodeSendData();
+							}
+
 							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
+								addCascading = pData->AddCascading;
 								AddNodeSendData();
 							}
 
@@ -312,7 +326,7 @@ void CDataCollectorDlg::OnBtnSendData()
 
 	if ((endAddress - startAddress + 1) % (DataPacket*DATASIZE) == 0)Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE);
 	else Cascading = (endAddress - startAddress + 1) / (DataPacket*DATASIZE) + 1;
-	CsvFile = (FILEMNG *)malloc((Cascading+AddCascading)*sizeof(FILEMNG));
+	CsvFile = (FILEMNG *)malloc((Cascading+SumCascading)*sizeof(FILEMNG));
 
 	for(queryCnt=0;queryResult==0;){
 		if(queryCnt==0)query.Format("SELECT id FROM rtfm.labname where labname = ('%s')",tmpLabName);
@@ -348,26 +362,39 @@ void CDataCollectorDlg::OnBtnSendData()
 	StackPointer.Close();*/
 
 	if (AddNodeFlag) {
-		AddLabName = LabName + "_add";
-		query.Format("insert into labname (labname, startaddr, endaddr, workspace_id, testcase_id) values ('%s', %d, %d, %d, %d)", AddLabName, AddStartAddress, AddEndAddress, AddWorkSpaceId, AddTestCaseId);
-		mysql_query(connection, query);
-		query.Format("SELECT id FROM rtfm.labname where labname = ('%s')", AddLabName);
-		mysql_query(connection, query);
-		m_res = mysql_store_result(&mysql);
-		if ((row = mysql_fetch_row(m_res)) == NULL) {
-			AfxMessageBox("Check DB Status");
-			return;
+		addNode *pData = NULL;
+		POSITION pos = addNodeList.GetHeadPosition();
+		int nodeCount = 0;
+		while (pos != NULL) {
+			pData = (addNode *)addNodeList.GetAt(pos);
+
+			if (nodeCount == 0)pData->AddLabName.Format(LabName+"_add");
+			else pData->AddLabName.Format(LabName + "_add_%d",nodeCount);
+
+			query.Format("insert into labname (labname, startaddr, endaddr, workspace_id, testcase_id) values ('%s', %d, %d, %d, %d)", 
+				pData->AddLabName, pData->AddStartAddress, pData->AddEndAddress, pData->AddWorkSpaceId, pData->AddTestCaseId);
+			mysql_query(connection, query);
+			query.Format("SELECT id FROM rtfm.labname where labname = ('%s')", pData->AddLabName);
+			mysql_query(connection, query);
+			m_res = mysql_store_result(&mysql);
+			if ((row = mysql_fetch_row(m_res)) == NULL) {
+				AfxMessageBox("Check DB Status");
+				return;
+			}
+			pData->AddLabId = _ttoi(row[0]);
+			addNodeList.SetAt(pos, pData);
+			addNodeList.GetNext(pos);
+			nodeCount++;
 		}
-		AddLabId = _ttoi(row[0]);
 	}
 
-	thParam.FileNum = Cascading+AddCascading;
+	thParam.FileNum = Cascading+SumCascading;
 	thParam.File = CsvFile;
 	toDBThread = AfxBeginThread(CSVtoDB, (LPVOID)&thParam, 0, 0U, 0UL, (LPSECURITY_ATTRIBUTES)0);
 
 	GetDlgItemText(IDC_EDIT_Frame, tmpFrame);
 	FrameLimit = _ttoi(tmpFrame);
-	txPacket = packetFrame(TxID, INFO_BIT|(Cascading+AddCascading), FrameLimit, startAddress, endAddress);
+	txPacket = packetFrame(TxID, INFO_BIT|(Cascading+SumCascading), FrameLimit, startAddress, endAddress);
 
 	if((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK){
 		CString msg;
@@ -601,6 +628,10 @@ void CDataCollectorDlg::OnBnClickedBtnGetAddnode()
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	CAdditionalNodeDlg dlg;
 
+	addNode *pData = new addNode;
+	addNodeList.AddTail(pData);
+	POSITION pos = addNodeList.GetTailPosition();
+
 	int addTxID = 0;
 
 	if (dlg.DoModal() != IDOK) {
@@ -608,23 +639,33 @@ void CDataCollectorDlg::OnBnClickedBtnGetAddnode()
 		return;
 	}
 
+	pData = (addNode*)addNodeList.GetAt(pos);
+
 	addTxID = dlg.TxID;
-	AddWorkSpaceId = dlg.WorkSpaceId;
-	AddTestCaseId = dlg.TestCaseId;
-	AddStartAddress = dlg.StartAddress;
-	AddEndAddress = dlg.EndAddress;
+	pData->AddWorkSpaceId = dlg.WorkSpaceId;
+	pData->AddTestCaseId = dlg.TestCaseId;
+	pData->AddStartAddress = dlg.StartAddress;
+	pData->AddEndAddress = dlg.EndAddress;
 
-	if ((AddEndAddress - AddStartAddress + 1) % (DataPacket*DATASIZE) == 0)AddCascading = (AddEndAddress - AddStartAddress + 1) / (DataPacket*DATASIZE);
-	else AddCascading = (AddEndAddress - AddStartAddress + 1) / (DataPacket*DATASIZE) + 1;
+	if ((pData->AddEndAddress - pData->AddStartAddress + 1) % (DataPacket*DATASIZE) == 0) {
+		pData->AddCascading = (pData->AddEndAddress - pData->AddStartAddress + 1) / (DataPacket*DATASIZE);
+	}
+	else pData->AddCascading = (pData->AddEndAddress - pData->AddStartAddress + 1) / (DataPacket*DATASIZE) + 1;
 
-	addPacket = packetFrame(addTxID, INFO_BIT, 0, AddStartAddress, AddEndAddress);
+	SumCascading += pData->AddCascading;
+
+	pData->addPacket = packetFrame(addTxID, INFO_BIT, 0, pData->AddStartAddress, pData->AddEndAddress);
 
 	CString msg;
 	AfxMessageBox("Additional Success!!");
-	msg.Format("WS-%d,TC-%d,MSG-%04X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", AddWorkSpaceId, AddTestCaseId, addPacket.canId, addPacket.dlc, addPacket.data[0], addPacket.data[1], addPacket.data[2], addPacket.data[3], addPacket.data[4], addPacket.data[5], addPacket.data[6], addPacket.data[7]);
+	msg.Format("WS-%d,TC-%d,MSG-%04X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", 
+		pData->AddWorkSpaceId, pData->AddTestCaseId, pData->addPacket.canId, pData->addPacket.dlc, 
+		pData->addPacket.data[0], pData->addPacket.data[1], pData->addPacket.data[2], pData->addPacket.data[3], 
+		pData->addPacket.data[4], pData->addPacket.data[5], pData->addPacket.data[6], pData->addPacket.data[7]);
 	m_lstCan.AddString(msg);
 	AddNodeFlag = 1;
-
+	addNodeList.SetAt(pos,pData);
+	
 }
 
 
@@ -639,14 +680,21 @@ void CDataCollectorDlg::AddNodeSendData()
 {
 	int ERR_SEND;
 
-	addPacket.data[2] = txPacket.data[2];
-	addPacket.data[3] = txPacket.data[3];
+	addNode *pData = NULL;
+
+	pData = (addNode*)addNodeList.GetHead();
+
+	pData->addPacket.data[2] = txPacket.data[2];
+	pData->addPacket.data[3] = txPacket.data[3];
 
 
 	if ((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK) {
 		CString msg;
 		AfxMessageBox("Data sending Complete !!");
-		msg.Format("%d %08X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", addPacket.timeStamp, addPacket.canId, addPacket.dlc, addPacket.data[0], addPacket.data[1], addPacket.data[2], addPacket.data[3], addPacket.data[4], addPacket.data[5], addPacket.data[6], addPacket.data[7]);
+		msg.Format("%d %08X %02d %02X%02X,%02X%02X,%02X%02X,%02X%02X ", 
+			pData->addPacket.timeStamp, pData->addPacket.canId, pData->addPacket.dlc, 
+			pData->addPacket.data[0], pData->addPacket.data[1], pData->addPacket.data[2], pData->addPacket.data[3], 
+			pData->addPacket.data[4], pData->addPacket.data[5], pData->addPacket.data[6], pData->addPacket.data[7]);
 		m_lstCan.AddString(msg);
 	}
 	else {

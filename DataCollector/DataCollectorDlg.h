@@ -45,6 +45,9 @@ protected:
 	afx_msg void AddNodeSendData();
 
 public:
+
+	CPtrList addNodeList;
+	
 	LPTSTR LpCmdLine;
 	int TxID;
 	int RxID;
@@ -59,16 +62,31 @@ public:
 	int Cascading;
 	int EndAddress;
 	CAN_FRAME txPacket;
+	SECINFO SectionInfo[33];
 
 	BOOL AddNodeFlag;
-	CString AddLabName;
-	int AddLabId;
-	int AddWorkSpaceId;
-	int AddTestCaseId;
-	int AddCascading;
-	int AddStartAddress;
-	int AddEndAddress;
-	CAN_FRAME addPacket;
+	int SumCascading;
+	//CString AddLabName;
+	//int AddLabId;
+	//int AddWorkSpaceId;
+	//int AddTestCaseId;
+	//int AddCascading;
+	//int AddStartAddress;
+	//int AddEndAddress;
+	//CAN_FRAME addPacket;
+	//SECINFO AddSectionInfo[33];
+
+	struct addNode {
+		CString AddLabName;
+		int AddLabId;
+		int AddWorkSpaceId;
+		int AddTestCaseId;
+		int AddCascading;
+		int AddStartAddress;
+		int AddEndAddress;
+		CAN_FRAME addPacket;
+		SECINFO AddSectionInfo[33];
+	};
 
 	CFile DataCollect;
 	CString FileName;
@@ -80,8 +98,6 @@ public:
 
 	int NameCnt;
 	int SPFlag;
-	SECINFO SectionInfo[33];
-	SECINFO AddSectionInfo[33];
 	FILEMNG *CsvFile;
 	BYTE *TmpDumpVal;
 

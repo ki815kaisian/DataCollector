@@ -100,3 +100,4 @@ typedef struct CsvInfo{
 		int FileNum;
 		FILEMNG *File;
 }CSVINFO;
+

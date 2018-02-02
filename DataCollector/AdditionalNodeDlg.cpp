@@ -120,22 +120,27 @@ int CAdditionalNodeDlg::GetSectionInfo(CString workSpaceName)
 	}
 	else sectionIndex = _ttoi(row[0]);
 
+	CDataCollectorDlg::addNode *pData = NULL;
+	POSITION pos = ((CDataCollectorDlg*)GetParent())->addNodeList.GetTailPosition();
+	pData = (CDataCollectorDlg::addNode*)((CDataCollectorDlg*)GetParent())->addNodeList.GetAt(pos);
+
 	for (int i = 0; i<10; i++)tmpAddrArray[i] = 0;
 	query.Format("SELECT section_index, section, baseaddress, size FROM rtfm.sectiontable where workspace_id = '%d';", workSpaceId);
 	mysql_query(connection, query);
 	m_res = mysql_store_result(&mysql);
 	for (int i = 0; i<sectionIndex; i++) {
 		if (!(row = mysql_fetch_row(m_res)) == NULL) {
-			((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].sectionID = _ttoi(row[0]);
-			((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].sectionName = row[1];
+			pData->AddSectionInfo[i].sectionID = _ttoi(row[0]);
+			pData->AddSectionInfo[i].sectionName = row[1];
 			tmpAddr = row[2];
-			((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].size = _ttoi(row[3]);
+			pData->AddSectionInfo[i].size = _ttoi(row[3]);
 			tmpAddr.Delete(0, 4);
 			strcpy_s(tmpAddrArray, tmpAddr.GetLength() + 1, (const char*)tmpAddr.GetBuffer(0));
-			((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].startAddr = xstrtoi(tmpAddrArray);
-			((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].endAddr = xstrtoi(tmpAddrArray) + ((CDataCollectorDlg*)GetParent())->AddSectionInfo[i].size;
+			pData->AddSectionInfo[i].startAddr = xstrtoi(tmpAddrArray);
+			pData->AddSectionInfo[i].endAddr = xstrtoi(tmpAddrArray) + pData->AddSectionInfo[i].size;
 		}
 	}
+	((CDataCollectorDlg*)GetParent())->addNodeList.SetAt(pos, pData);
 
 	for (int i = 0; i<10; i++)tmpAddrArray[i] = 0;
 	query.Format("SELECT baseaddress FROM rtfm.sectiontable where workspace_id = '%d' and section_index = (SELECT min(section_index) from rtfm.sectiontable where workspace_id = '%d');", workSpaceId, workSpaceId);
