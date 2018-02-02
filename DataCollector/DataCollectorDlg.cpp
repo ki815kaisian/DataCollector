@@ -240,7 +240,11 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 						if (AddNodeFlag) {
 							addNode *pData = NULL;
 							pData = (addNode *)addNodeList.GetHead();
-							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+SumCascading) && (address + 6 >= pData->AddEndAddress)) {
+							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
+								addCascading = pData->AddCascading;
+								AddNodeSendData();
+							}
+							else if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading+SumCascading) && (address + 6 >= pData->AddEndAddress)) {
 								DataCollect.Close();
 								CsvFile[NameCnt - 1].writeFlag = 1;
 							}
@@ -249,12 +253,6 @@ void CDataCollectorDlg::OnTimer(UINT nIDEvent)
 								addNodeList.RemoveHead();
 								AddNodeSendData();
 							}
-
-							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
-								addCascading = pData->AddCascading;
-								AddNodeSendData();
-							}
-
 						}
 						else {
 							if ((frameIndex == FrameLimit - 1) && (NameCnt == Cascading) && (address + 6 >= EndAddress)) {
@@ -681,12 +679,13 @@ void CDataCollectorDlg::AddNodeSendData()
 	int ERR_SEND;
 
 	addNode *pData = NULL;
-
+	POSITION pos = addNodeList.GetHeadPosition();
 	pData = (addNode*)addNodeList.GetHead();
 
 	pData->addPacket.data[2] = txPacket.data[2];
 	pData->addPacket.data[3] = txPacket.data[3];
 
+	addNodeList.SetAt(pos, pData);
 
 	if ((ERR_SEND = DNK_SendCanData(&txPacket)) == ERR_OK) {
 		CString msg;
